@@ -8,6 +8,7 @@ from googletrans import Translator
 
 # print("hello world!")
 
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
