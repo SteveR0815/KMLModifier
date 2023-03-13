@@ -6,9 +6,6 @@ from pykml import parser
 from geopy.geocoders import Nominatim
 from googletrans import Translator
 
-# print("hello world!")
-# blablabla
-
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -26,16 +23,22 @@ class MainWindow(QMainWindow):
         self.list_widget = QListWidget()
 
         # Create a button to analyze the KML file
-        self.process_button = QPushButton('Analyze (Countries)')
-        self.process_button.clicked.connect(self.process_items)
-        self.process_button.setEnabled(False)
+        self.analyze_countries_button = QPushButton('Analyze Countries', self)
+
+        # Create a button to process the main file depending on the country selected
+        self.create_kml_button = QPushButton('Create Country KML', self)
+        # self.process_button.clicked.connect(self.create_kml)
+        # self.process_button.setEnabled(False)
 
         # Create a Layout -> add Buttons, Input field and List
-        layout = QVBoxLayout()
+        layout = QVBoxLayout(self)
         layout.addWidget(self.button)
         layout.addWidget(self.input_field)
         layout.addWidget(self.list_widget)
-        layout.addWidget(self.process_button)
+        # layout.addWidget(self.process_countries)
+        # layout.addWidget(self.create_kml)
+        layout.addWidget(self.analyze_countries_button)
+        layout.addWidget(self.create_kml_button)
 
         # Set the Layout as Main Layout of the Window
         widget = QWidget()
@@ -45,8 +48,12 @@ class MainWindow(QMainWindow):
         # Initialize input_file_path
         self.input_file_path = None
 
+        # Initialize selected country
+        self.selected_country = None
+
     def get_country(self, lat, lon):
-        geolocator = Nominatim(user_agent="geoapiExercises")
+        # geolocator = Nominatim(user_agent="geoapiExercises")
+        geolocator = Nominatim(user_agent="geoapi")
         location = geolocator.reverse(f"{lat}, {lon}")
         if location is not None:
             address = location.raw['address']
@@ -56,6 +63,50 @@ class MainWindow(QMainWindow):
             return country_name
         else:
             return "Unknown"
+
+    def create_kml(self):
+        # Get the selected country
+        selected_items = self.list_widget.selectedItems()
+        if len(selected_items) == 0:
+            return
+        self.selected_country = selected_items[0].text()
+
+        # Define the output file path
+        output_file_path = self.input_file_path + "." + self.selected_country + ".kml"
+
+        try:
+            with open(self.input_file_path, 'rb') as fsrc, open(output_file_path, 'wb') as fdst:
+                shutil.copyfileobj(fsrc, fdst)
+                root = parser.fromstring(open(output_file_path, 'rb').read())
+
+                # Loop through all Placemarks in the file
+                for placemark in root.Document.Placemark:
+                    # Get the coordinates for the current Placemark
+                    coordinates = placemark.Point.coordinates.text.strip()
+
+                    # Split the coordinates into a list of points
+                    points = coordinates.split()
+
+                    # Loop through all points and update their coordinates
+                    new_points = []
+                    for point in points:
+                        lon, lat = point.split(',')
+                        country = self.get_country(lat, lon)
+                        if country == self.selected_country:
+                            new_points.append(point)
+                    new_coordinates = ' '.join(new_points)
+                    placemark.Point.coordinates = new_coordinates
+
+                # Write the updated KML file
+                with open(output_file_path, 'wb') as f:
+                    f.write(parser.tostring(root).encode('utf-8'))
+
+        except Exception as e:
+            # Display an error message if the KML file cannot be processed
+            self.list_widget.clear()
+            self.list_widget.addItem("Error: Failed to process KML file.")
+            self.process_button.setEnabled(False)
+            print(f"Error: {e}")
 
 
     def choose_file(self):
@@ -118,11 +169,13 @@ class MainWindow(QMainWindow):
                 self.process_button.setEnabled(False)
                 print(f"Error: {e}")
 
-    def process_items(self):
+    def process_countries(self):
         # Process Elements
         selected_items = self.list_widget.selectedItems()
         for item in selected_items:
             print(item.text())
+
+
 
 
 if __name__ == '__main__':
