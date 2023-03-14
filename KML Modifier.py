@@ -11,6 +11,9 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("KML Modifier")
 
+# Blablub
+
+
         # Create a button to select a KML file
         self.button = QPushButton('Choose a KML-File')
         self.button.clicked.connect(self.choose_file)
